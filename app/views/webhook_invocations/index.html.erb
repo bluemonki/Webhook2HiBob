@@ -1,0 +1,8 @@
+<!-- app/views/webhook_invocations/index.html.erb -->
+<h1>Webhook invocations</h1>
+
+<%= turbo_frame_tag "webhook_invocations_table",
+                    src: table_webhook_invocations_path,
+                    data: { controller: "poll", poll_interval_value: 5000 } do %>
+  <%= render partial: "table", locals: { webhook_invocations: @webhook_invocations } %>
+<% end %>

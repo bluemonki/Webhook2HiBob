@@ -1,0 +1,26 @@
+<!-- app/views/webhook_invocations/_table.html.erb -->
+<table>
+  <thead>
+  <tr>
+    <th>Received</th>
+    <th>Status</th>
+    <th>Application</th>
+    <th>HiBob employee</th>
+    <th>Pinpoint comment</th>
+    <th>HTTP</th>
+  </tr>
+  </thead>
+
+  <tbody>
+  <% webhook_invocations.each do |inv| %>
+    <tr>
+      <td><%= inv.received_at&.to_fs(:db) %></td>
+      <td><%= inv.status %></td>
+      <td><%= inv.application_id %></td>
+      <td><%= inv.hibob_employee_id %></td>
+      <td><%= inv.pinpoint_comment_id %></td>
+      <td><%= inv.http_status %></td>
+    </tr>
+  <% end %>
+  </tbody>
+</table>

@@ -3,5 +3,13 @@
   "private": true,
   "scripts": {
     "build": "webpack --config webpack.config.js"
+  },
+  "devDependencies": {
+    "webpack": "^5.105.2",
+    "webpack-cli": "^6.0.1"
+  },
+  "dependencies": {
+    "@hotwired/stimulus": "^3.2.2",
+    "@hotwired/turbo-rails": "^8.0.23"
   }
 }

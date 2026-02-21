@@ -12,4 +12,10 @@ Rails.application.routes.draw do
   # Defines the root path route ("/")
   # root "posts#index"
   resources :webhooks, only: [:create]
+
+  resources :webhook_invocations, only: [:index] do
+    collection do
+      get :table
+    end
+  end
 end
