@@ -1,4 +1,4 @@
-# spec/services/pin_point/pinpoint_api_client_spec.rb
+# spec/services/pin_point/client_spec.rb
 require "rails_helper"
 require "json"
 require "net/http"
@@ -146,7 +146,6 @@ RSpec.describe PinPoint::Client do
 
       allow(client).to receive(:perform_download).and_return(response)
       allow(client).to receive(:log_response)
-      allow(client).to receive(:extract_request_id).and_return(nil)
 
       bytes = client.download_file(url)
       expect(bytes).to eq("FILEBYTES")
@@ -159,7 +158,6 @@ RSpec.describe PinPoint::Client do
 
       allow(client).to receive(:perform_download).and_return(response)
       allow(client).to receive(:log_response)
-      allow(client).to receive(:extract_request_id).and_return(nil)
 
       tmp = Tempfile.new(["pin_point", ".pdf"])
       tmp.close

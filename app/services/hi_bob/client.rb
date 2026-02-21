@@ -9,7 +9,7 @@ require "multipart/post"
 require "net/http/post/multipart"
 
 module HiBob
-  class Client
+  class Client < Api::BaseClient
     DEFAULT_BASE_URL = "https://api.hibob.com/v1".freeze
 
     class Error < StandardError; end
@@ -50,7 +50,7 @@ module HiBob
           payload
         end
 
-      post_json("people", normalized)
+      request_json(:post, "people", body: normalized)
     end
 
     def upload_shared_document(employee_id:, file_path:)
@@ -103,7 +103,7 @@ module HiBob
 
       payload["fields"] = fields if fields
 
-      post_json("/people/search", payload)
+      request_json(:post, "/people/search", body: payload)
     end
 
     # Convenience: find a single employee by email.
@@ -129,53 +129,11 @@ module HiBob
 
     private
 
-    attr_reader :username, :password, :base_url, :open_timeout, :read_timeout, :logger
+    attr_reader :username, :password
+    # , :base_url, :open_timeout, :read_timeout, :logger
 
-    def post_json(path, payload)
-      uri = build_uri(path)
-      request = Net::HTTP::Post.new(uri)
-      request["Accept"] = "application/json"
-      request["Content-Type"] = "application/json"
-      request["Authorization"] = basic_auth_header(username, password)
-      request.body = JSON.dump(payload)
-
-      started_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-      response = perform(uri, request)
-      duration_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - started_at) * 1000).round
-
-      log_response(:post, uri, response, duration_ms)
-
-      case response
-      when Net::HTTPSuccess, Net::HTTPCreated
-        body = response.body.to_s
-        body.strip.empty? ? {} : JSON.parse(body)
-      else
-        raise HttpError.new(
-          status: response.code.to_i,
-          body: response.body.to_s,
-          method: "POST",
-          path: uri.request_uri
-        )
-      end
-    rescue JSON::ParserError => e
-      raise Error, "HiBob API returned invalid JSON: #{e.message}"
-    rescue Timeout::Error, Errno::ECONNRESET, Errno::ECONNREFUSED, SocketError => e
-      raise Error, "HiBob API request failed: #{e.class}: #{e.message}"
-    end
-
-    def build_uri(path)
-      base = base_url.end_with?("/") ? base_url : "#{base_url}/"
-      URI.join(base, path.sub(%r{\A/+}, ""))
-    end
-
-    def perform(uri, request)
-      Net::HTTP.start(
-        uri.host,
-        uri.port,
-        use_ssl: uri.scheme == "https",
-        open_timeout: open_timeout,
-        read_timeout: read_timeout
-      ) { |http| http.request(request) }
+    def default_headers
+      super.merge("Authorization" => basic_auth_header(username, password))
     end
 
     def basic_auth_header(user, pass)
@@ -183,24 +141,7 @@ module HiBob
       "Basic #{encoded}"
     end
 
-    def log_response(method, uri, response, duration_ms)
-      return unless logger
-
-      status = response.code.to_i
-      level =
-        if status >= 500
-          :error
-        elsif status >= 400
-          :warn
-        else
-          :info
-        end
-
-      logger.public_send(level, "HiBob API #{method.to_s.upcase} #{uri} -> #{status} (#{duration_ms}ms)")
-    end
-
-    def default_logger
-      defined?(Rails) && Rails.respond_to?(:logger) ? Rails.logger : nil
-    end
+    def error_class = HiBob::Client::Error
+    def http_error_class = HiBob::Client::HttpError
   end
 end

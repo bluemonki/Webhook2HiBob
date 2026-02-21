@@ -6,21 +6,20 @@ require "json"
 require "uri"
 
 module PinPoint
-  class Client
+  class Client < Api::BaseClient
     DEFAULT_BASE_URL = "https://developers-test.pinpointhq.com".freeze
 
     class Error < StandardError; end
 
     class HttpError < Error
-      attr_reader :status, :body, :request_id, :method, :path
+      attr_reader :status, :body, :method, :path
 
-      def initialize(status:, body:, request_id:, method:, path:)
+      def initialize(status:, body:,  method:, path:)
         @status = status
         @body = body
-        @request_id = request_id
         @method = method
         @path = path
-        super("Pinpoint API request failed (HTTP #{status}) #{method} #{path} request_id=#{request_id || "n/a"}")
+        super("Pinpoint API request failed (HTTP #{status}) #{method} #{path} ")
       end
     end
 
@@ -47,7 +46,7 @@ module PinPoint
 
     # Typed wrapper
     def get_application_data_with_attachments(application_id)
-      ApplicationData.new(get_application_with_attachments(application_id))
+      PinPoint::ApplicationData.new(get_application_with_attachments(application_id))
     end
 
     # Convenience: fetch application (with attachments) and download the attachment with the given context.
@@ -83,24 +82,6 @@ module PinPoint
       request_json(:get, "/api/v1/applications", params: params)
     end
 
-    # --- Generic verbs (useful as you expand) ---
-
-    def get(path, params: nil, headers: nil)
-      request_json(:get, path, params: params, headers: headers)
-    end
-
-    def post(path, body: nil, headers: nil)
-      request_json(:post, path, body: body, headers: headers)
-    end
-
-    def put(path, body: nil, headers: nil)
-      request_json(:put, path, body: body, headers: headers)
-    end
-
-    def delete(path, headers: nil)
-      request_json(:delete, path, headers: headers)
-    end
-
     # Downloads a file from a full URL (e.g. attachment["url"]).
     #
     # Usage:
@@ -117,14 +98,12 @@ module PinPoint
       response = perform_download(uri, headers: headers, max_redirects: max_redirects)
       duration_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - started_at) * 1000).round
 
-      request_id = extract_request_id(response)
-      log_response(:get, uri, response, duration_ms, request_id)
+      log_response(:get, uri, response, duration_ms)
 
       unless response.is_a?(Net::HTTPSuccess)
         raise HttpError.new(
           status: response.code.to_i,
           body: response.body.to_s,
-          request_id: request_id,
           method: "GET",
           path: uri.to_s
         )
@@ -169,7 +148,7 @@ module PinPoint
         }
       }
 
-      post("/api/v1/comments", body: payload)
+      request_json(:post, "/api/v1/comments", body: payload)
     end
 
     # Convenience for your specific message format
@@ -179,92 +158,14 @@ module PinPoint
 
     private
 
-    attr_reader :api_key, :base_url, :open_timeout, :read_timeout, :logger
+    attr_reader :api_key
 
-    # Some APIs return request ids under different headers; we’ll capture a few common ones.
-    REQUEST_ID_HEADERS = [
-      "X-Request-Id",
-      "X-Request-ID",
-      "X-Trace-Id",
-      "X-Correlation-Id"
-    ].freeze
-
-    def request_json(method, path, params: nil, body: nil, headers: nil)
-      uri = build_uri(path, params: params)
-      http_request = build_request(method, uri, body: body, headers: headers)
-
-      started_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-      response = perform(uri, http_request)
-      duration_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - started_at) * 1000).round
-
-      request_id = extract_request_id(response)
-
-      log_response(method, uri, response, duration_ms, request_id)
-
-      case response
-      when Net::HTTPSuccess
-        parse_json_body(response.body.to_s)
-      else
-        raise HttpError.new(
-          status: response.code.to_i,
-          body: response.body.to_s,
-          request_id: request_id,
-          method: method.to_s.upcase,
-          path: uri.request_uri
-        )
-      end
-    rescue JSON::ParserError => e
-      raise Error, "Pinpoint API returned invalid JSON: #{e.message}"
-    rescue Timeout::Error, Errno::ECONNRESET, Errno::ECONNREFUSED, SocketError => e
-      raise Error, "Pinpoint API request failed: #{e.class}: #{e.message}"
+    def default_headers
+      super.merge("X-API-KEY" => api_key)
     end
 
-    def build_uri(path, params:)
-      base = base_url.end_with?("/") ? base_url : "#{base_url}/"
-      uri = URI.join(base, path.sub(%r{\A/+}, ""))
-
-      if params && !params.empty?
-        # Rails-ish hash support; converts to query string safely
-        uri.query = URI.encode_www_form(params.to_a)
-      end
-
-      uri
-    end
-
-    def build_request(method, uri, body:, headers:)
-      klass =
-        case method.to_sym
-        when :get    then Net::HTTP::Get
-        when :post   then Net::HTTP::Post
-        when :put    then Net::HTTP::Put
-        when :delete then Net::HTTP::Delete
-        else
-          raise ArgumentError, "Unsupported HTTP method: #{method.inspect}"
-        end
-
-      req = klass.new(uri)
-      req["X-API-KEY"] = api_key
-      req["Accept"] = "application/json"
-
-      (headers || {}).each { |k, v| req[k] = v }
-
-      if body
-        req["Content-Type"] ||= "application/json"
-        req.body = body.is_a?(String) ? body : JSON.dump(body)
-      end
-
-      req
-    end
-
-    def perform(uri, request)
-      Net::HTTP.start(
-        uri.host,
-        uri.port,
-        use_ssl: uri.scheme == "https",
-        open_timeout: open_timeout,
-        read_timeout: read_timeout
-      ) { |http| http.request(request) }
-    end
+    def error_class = PinPoint::Client::Error
+    def http_error_class = PinPoint::Client::HttpError
 
     def perform_download(uri, headers:, max_redirects:)
       raise Error, "Too many redirects downloading file" if max_redirects < 0
@@ -292,42 +193,6 @@ module PinPoint
       end
 
       response
-    end
-
-    def parse_json_body(body)
-      return {} if body.strip.empty?
-      JSON.parse(body)
-    end
-
-    def extract_request_id(response)
-      REQUEST_ID_HEADERS.each do |header|
-        value = response[header]
-        return value if value && !value.strip.empty?
-      end
-      nil
-    end
-
-    def log_response(method, uri, response, duration_ms, request_id)
-      return unless logger
-
-      status = response.code.to_i
-      level =
-        if status >= 500
-          :error
-        elsif status >= 400
-          :warn
-        else
-          :info
-        end
-
-      logger.public_send(
-        level,
-        "Pinpoint API #{method.to_s.upcase} #{uri} -> #{status} (#{duration_ms}ms) request_id=#{request_id || "n/a"}"
-      )
-    end
-
-    def default_logger
-      defined?(Rails) && Rails.respond_to?(:logger) ? Rails.logger : nil
     end
   end
 end

@@ -1,4 +1,4 @@
-# spec/services/hi_bob/hibob_api_client_spec.rb
+# spec/services/hi_bob/client_spec.rb
 require "rails_helper"
 require "json"
 require "net/http"
