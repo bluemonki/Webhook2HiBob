@@ -12,12 +12,23 @@ class WebhooksController < ApplicationController
   # - Listen for the new hire event
   # - Use Pinpoint application with `id=8863880` for testing. You can also use any other application.
   def create
+    started_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
     saved_path = nil
 
+    # don't understand where I get the signing key for this
     # unless verified_request?
     #   render json: { error: "unauthorized" }, status: :unauthorized
     #   return
     # end
+
+    invocation = WebhookInvocation.create!(
+      provider: "pinpoint",
+      status: "processing",
+      received_at: Time.current,
+      request_id: request.request_id,
+      remote_ip: request.remote_ip,
+      user_agent: request.user_agent
+    )
 
     payload = JSON.parse(request.raw_post)
 
@@ -25,7 +36,23 @@ class WebhooksController < ApplicationController
     triggered_at = payload["triggeredAt"]
     application_id = payload.dig("data", "application", "id")
 
+    invocation.update!(
+      event: event,
+      triggered_at: (Time.zone.parse(triggered_at) rescue nil),
+      application_id: application_id,
+      payload_json: { event: event, triggeredAt: triggered_at, applicationId: application_id }.to_json
+    )
+
     if application_id.nil?
+
+      invocation.update!(
+        status: "failed",
+        http_status: 422,
+        error_class: "MissingApplicationId",
+        error_message: "missing application id",
+        completed_at: Time.current
+      )
+
       render json: { error: "missing application id" }, status: :unprocessable_entity
       return
     end
@@ -70,6 +97,8 @@ class WebhooksController < ApplicationController
       hibob_employee_id = existing_employee.fetch("id")
     end
 
+    invocation.update!(hibob_employee_id: hibob_employee_id)
+
     # Update the employee record with their CV (that was attached as part of the
     # Pinpoint application, use one with pdf_cv context, as a public document in HiBob
     hibob.upload_shared_document(employee_id: hibob_employee_id,
@@ -78,7 +107,16 @@ class WebhooksController < ApplicationController
     # Add a comment on the Pinpoint application stating the record has been created
     # quoting the HiBob Reference ID for the employee record
     # i.e. “Record created with ID: xxxxxx”
-    pinpoint.comment_hibob_record_created(application_id, hibob_employee_id)
+    pinpoint_comment_id = pinpoint.comment_hibob_record_created(application_id, hibob_employee_id)
+    invocation.update!(pinpoint_comment_id: pinpoint_comment_id)
+
+    duration_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - started_at) * 1000).round
+    invocation.update!(
+      status: "succeeded",
+      http_status: 200,
+      completed_at: Time.current,
+      duration_ms: duration_ms
+    )
 
     render json: {
       ok: true,
@@ -88,10 +126,32 @@ class WebhooksController < ApplicationController
       pinpointApplication: app_data
     }, status: :ok
   rescue JSON::ParserError
+    invocation&.update!(
+      status: "failed",
+      http_status: 400,
+      error_class: "JSON::ParserError",
+      error_message: "invalid JSON",
+      completed_at: Time.current
+    )
     render json: { error: "invalid JSON" }, status: :bad_request
   rescue PinPoint::Client::HttpError => e
+    invocation&.update!(
+      status: "failed",
+      http_status: 502,
+      error_class: e.class.name,
+      error_message: e.message,
+      completed_at: Time.current,
+      metadata: { pinpoint_status: e.status, pinpoint_request_id: e.request_id }.to_json
+    )
     render json: { error: "PinPoint error", status: e.status, request_id: e.request_id }, status: :bad_gateway
   rescue HiBob::Client::HttpError => e
+    invocation&.update!(
+      status: "failed",
+      http_status: 502,
+      error_class: e.class.name,
+      error_message: e.message,
+      completed_at: Time.current
+    )
     render json: { error: "HiBob error", status: e.status, message: e.message }, status: :bad_gateway
   ensure
     File.delete(saved_path) if saved_path && File.exist?(saved_path)

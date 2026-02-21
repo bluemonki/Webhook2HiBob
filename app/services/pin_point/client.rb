@@ -148,7 +148,8 @@ module PinPoint
         }
       }
 
-      request_json(:post, "/api/v1/comments", body: payload)
+      response = request_json(:post, "/api/v1/comments", body: payload)
+      response.fetch("data").fetch("id")
     end
 
     # Convenience for your specific message format
