@@ -16,9 +16,9 @@ VCR.configure do |c|
   # URIs and bodies so the value is never committed.
   c.filter_sensitive_data('<AWS_ACCESS_KEY_ID>') do |interaction|
     # try request URI first
-    if interaction.request.uri =~ /(REDACTED)/
+    if interaction.request.uri =~ /(AKIA[0-9A-Z]{16})/
       Regexp.last_match(1)
-    elsif interaction.response.body.is_a?(String) && interaction.response.body =~ /(REDACTED)/
+    elsif interaction.response.body.is_a?(String) && interaction.response.body =~ /(AKIA[0-9A-Z]{16})/
       Regexp.last_match(1)
     end
   end
