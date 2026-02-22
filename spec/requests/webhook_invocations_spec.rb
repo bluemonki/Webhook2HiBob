@@ -17,8 +17,8 @@ RSpec.describe "WebhookInvocations", type: :request do
       get webhook_invocations_path
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("id=\"webhook_invocations_table\"")
-      # verify one of the cells from our record
-      expect(response.body).to include("<td>received</td>")
+      # verify one of the cells from our record (status rendered as a badge)
+      expect(response.body).to include("class=\"status received\"")
     end
   end
 
@@ -38,12 +38,12 @@ RSpec.describe "WebhookInvocations", type: :request do
       get table_webhook_invocations_path, headers: { "Turbo-Frame" => "webhook_invocations_table" }
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("id=\"webhook_invocations_table\"")
-      expect(response.body).to include("<td>received</td>")
+      expect(response.body).to include("class=\"status received\"")
     end
 
     it "still works without the Turbo-Frame header" do
       get table_webhook_invocations_path
-      expect(response.body).to include("<table>")
+      expect(response.body).to include("<table")
     end
   end
 end
