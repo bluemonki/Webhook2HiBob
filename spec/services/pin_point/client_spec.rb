@@ -102,7 +102,7 @@ RSpec.describe PinPoint::Client do
   describe "#create_comment_for_application" do
     it "POSTs JSON:API to /api/v1/comments for the application" do
       response = Net::HTTPSuccess.new("1.1", "200", "OK")
-      allow(response).to receive(:body).and_return(JSON.dump({ "data" => { "type" => "comments" } }))
+      allow(response).to receive(:body).and_return(JSON.dump({ "data" => { "type" => "comments", "id" => 12345 } }))
 
       captured_request = nil
       allow(Net::HTTP).to receive(:start) do |_host, _port, **_opts, &block|
@@ -116,7 +116,7 @@ RSpec.describe PinPoint::Client do
 
       result = client.create_comment_for_application("8863880", "Record created with ID: 123")
 
-      expect(result).to eq({ "data" => { "type" => "comments" } })
+      expect(result).to eq( 12345 )
       expect(captured_request).to be_a(Net::HTTP::Post)
       expect(captured_request.path).to eq("/api/v1/comments")
       expect(captured_request["X-API-KEY"]).to eq(api_key)
