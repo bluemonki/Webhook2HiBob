@@ -11,6 +11,18 @@ VCR.configure do |c|
   c.filter_sensitive_data('<HIBOB_USERNAME>') { Rails.application.credentials.fetch(:hibob_username) rescue nil }
   c.filter_sensitive_data('<HIBOB_PASSWORD>') { Rails.application.credentials.fetch(:hibob_password) rescue nil }
 
+  # scrub Amazon access key ids that appear in S3 presigned URLs; the pattern is
+  # AKIA followed by 16 uppercase alphanumerics.  We apply this both to request
+  # URIs and bodies so the value is never committed.
+  c.filter_sensitive_data('<AWS_ACCESS_KEY_ID>') do |interaction|
+    # try request URI first
+    if interaction.request.uri =~ /(REDACTED)/
+      Regexp.last_match(1)
+    elsif interaction.response.body.is_a?(String) && interaction.response.body =~ /(REDACTED)/
+      Regexp.last_match(1)
+    end
+  end
+
   # Allow localhost requests through (rails server in tests)
   c.ignore_localhost = true
 end
