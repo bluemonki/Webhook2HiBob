@@ -6,6 +6,7 @@ end
 
 # app/controllers/webhooks_controller.rb
 # Respond to HTTP POST requests sent to the /webhooks route defined above
+# Mostly cribbed from https://developers.pinpointhq.com/docs/verifying-webhooks
 class WebhooksController < ApplicationController
   skip_forgery_protection
 
