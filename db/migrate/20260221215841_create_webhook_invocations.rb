@@ -33,7 +33,7 @@ class CreateWebhookInvocations < ActiveRecord::Migration[8.1]
     add_index :webhook_invocations, :application_id
     add_index :webhook_invocations, :hibob_employee_id
     add_index :webhook_invocations, :pinpoint_comment_id
-    add_index :webhook_invocations, [:status, :received_at]
+    add_index :webhook_invocations, [ :status, :received_at ]
     add_index :webhook_invocations, :received_at
   end
 end

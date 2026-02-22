@@ -95,7 +95,6 @@ RSpec.describe HiBob::Client do
   end
 
   describe "#upload_shared_document" do
-
     it "raises ArgumentError when employee_id is blank" do
       expect {
         client.upload_shared_document(employee_id: "", file_path: "/tmp/file.pdf")
@@ -125,7 +124,7 @@ RSpec.describe HiBob::Client do
     end
 
     it "POSTs multipart data to /docs/people/:id/shared/upload with Basic Auth and parses JSON" do
-      file = Tempfile.new(["cv", ".pdf"])
+      file = Tempfile.new([ "cv", ".pdf" ])
       file.binmode
       file.write("%PDF fake")
       file.close
@@ -165,7 +164,7 @@ RSpec.describe HiBob::Client do
     end
 
     it "returns {} when HiBob responds with empty body" do
-      file = Tempfile.new(["cv", ".pdf"])
+      file = Tempfile.new([ "cv", ".pdf" ])
       file.write("fake")
       file.close
 
@@ -185,7 +184,7 @@ RSpec.describe HiBob::Client do
     end
 
     it "raises HttpError on non-2xx responses" do
-      file = Tempfile.new(["cv", ".pdf"])
+      file = Tempfile.new([ "cv", ".pdf" ])
       file.write("fake")
       file.close
 

@@ -65,7 +65,7 @@ module HiBob
         "application/octet-stream",
         File.basename(file_path)
       )
-      request = Net::HTTP::Post::Multipart.new(uri.request_uri, 'file' => upload_io)
+      request = Net::HTTP::Post::Multipart.new(uri.request_uri, "file" => upload_io)
       request["Accept"] = "application/json"
       request["Authorization"] = basic_auth_header(username, password)
 

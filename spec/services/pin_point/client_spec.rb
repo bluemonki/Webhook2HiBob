@@ -116,7 +116,7 @@ RSpec.describe PinPoint::Client do
 
       result = client.create_comment_for_application("8863880", "Record created with ID: 123")
 
-      expect(result).to eq( 12345 )
+      expect(result).to eq(12345)
       expect(captured_request).to be_a(Net::HTTP::Post)
       expect(captured_request.path).to eq("/api/v1/comments")
       expect(captured_request["X-API-KEY"]).to eq(api_key)
@@ -159,7 +159,7 @@ RSpec.describe PinPoint::Client do
       allow(client).to receive(:perform_download).and_return(response)
       allow(client).to receive(:log_response)
 
-      tmp = Tempfile.new(["pin_point", ".pdf"])
+      tmp = Tempfile.new([ "pin_point", ".pdf" ])
       tmp.close
 
       begin

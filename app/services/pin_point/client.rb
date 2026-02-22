@@ -197,4 +197,3 @@ module PinPoint
     end
   end
 end
-
