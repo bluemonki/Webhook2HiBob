@@ -1,7 +1,7 @@
 # routes.rb
 # Routing to define the controller method to handle incoming webhooks
 Rails.application.routes.draw do
-  resources :webhooks, only: [:create]
+  resources :webhooks, only: [ :create ]
 end
 
 # app/controllers/webhooks_controller.rb
@@ -53,7 +53,7 @@ class WebhooksController < ApplicationController
         completed_at: Time.current
       )
 
-      render json: { error: "missing application id" }, status: :unprocessable_entity
+      render json: { error: "missing application id" }, status: :unprocessable_content
       return
     end
 
@@ -166,11 +166,11 @@ class WebhooksController < ApplicationController
   end
 
   def hmac_header
-    request.headers['PINPOINT-HMAC-SHA256']
+    request.headers["PINPOINT-HMAC-SHA256"]
   end
 
   def computed_hmac
-    digest = OpenSSL::HMAC.digest(OpenSSL::Digest.new('sha256'), signing_secret, request.body.read)
+    digest = OpenSSL::HMAC.digest(OpenSSL::Digest.new("sha256"), signing_secret, request.body.read)
     Base64.strict_encode64(digest)
   end
 

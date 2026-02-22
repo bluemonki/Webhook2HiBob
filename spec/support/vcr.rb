@@ -1,0 +1,16 @@
+require 'vcr'
+require 'webmock/rspec'
+
+VCR.configure do |c|
+  c.cassette_library_dir = Rails.root.join('spec', 'vcr_cassettes')
+  c.hook_into :webmock
+  c.configure_rspec_metadata!
+
+  # Filter out any real credentials so they don't get committed to git
+  c.filter_sensitive_data('<PINPOINT_API_KEY>') { Rails.application.credentials.fetch(:pinpoint_api_key) rescue nil }
+  c.filter_sensitive_data('<HIBOB_USERNAME>') { Rails.application.credentials.fetch(:hibob_username) rescue nil }
+  c.filter_sensitive_data('<HIBOB_PASSWORD>') { Rails.application.credentials.fetch(:hibob_password) rescue nil }
+
+  # Allow localhost requests through (rails server in tests)
+  c.ignore_localhost = true
+end
